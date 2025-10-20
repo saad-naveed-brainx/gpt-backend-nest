@@ -24,8 +24,8 @@ export class Prompts {
     @Prop({ required: true, enum: ['system', 'user', 'assistant'] })
     role: string;
 
-    @Prop({ required: true, enum: ['text', 'pdf', 'image'] })
-    type: string;
+    @Prop({ required: false, enum: ['text', 'pdf', 'image'] })
+    type?: string;
 
     @Prop({
         required: false,
@@ -37,7 +37,6 @@ export class Prompts {
         type: [{
             fileId: String,
             fileName: String,
-            fileType: { type: String, enum: ['pdf', 'image'] },
             url: String,
         }],
         default: [],
@@ -45,7 +44,6 @@ export class Prompts {
     files?: Array<{
         fileId: string;
         fileName: string;
-        fileType: string;
         url: string;
     }>;
 }

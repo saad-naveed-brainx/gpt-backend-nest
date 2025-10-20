@@ -47,13 +47,16 @@ export class AuthService {
     async isLoggedInService(user: CreateUserDto) {
         try {
             if (user) {
+                const loggedInUser = await this.getProfileService(user.email);
                 return {
                     isLoggedIn: true,
+                    user: loggedInUser
                 }
             }
             else {
                 return {
                     isLoggedIn: false,
+                    user: null
                 }
             }
         } catch (err) {

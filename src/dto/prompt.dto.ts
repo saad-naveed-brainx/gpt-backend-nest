@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsArray, IsObject, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
 
 export class PromptDto {
     @IsString()
@@ -12,7 +12,7 @@ export class PromptDto {
 
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     type: string;
 
 
@@ -20,18 +20,15 @@ export class PromptDto {
     @IsOptional()
     userId: string;
 
-
     @IsString()
     @IsOptional()
     content: string;
 
-
     @IsArray()
     @IsOptional()
     files: Array<{
-        fileId: string;
+        fileId?: string;
         fileName: string;
-        fileType: string;
-        url: string;
+        url?: string;
     }>;
 }

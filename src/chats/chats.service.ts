@@ -7,17 +7,17 @@ import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
 import { ConfigService } from "@nestjs/config";
 import { PromptDto } from "src/dto/prompt.dto";
+import { PdfProcessorService } from "./PdfProcessorService";
 
 @Injectable()
 export class ChatsService {
     private openai: OpenAI;
     private conversationId: string;
-    constructor(@InjectModel(Prompts.name) private PromptsModel: Model<Prompts>, private configService: ConfigService) {
+    constructor(@InjectModel(Prompts.name) private PromptsModel: Model<Prompts>, private configService: ConfigService, private readonly pdfProcessorService: PdfProcessorService) {
         this.openai = new OpenAI({
             apiKey: this.configService.get('OPENAI_API_KEY'),
         });
     }
-
 
     async newConversation(data: NewConversationDto) {
         try {
@@ -30,7 +30,7 @@ export class ChatsService {
                 content: data.Prompt,
             })
             userPrompt.save();
-            this.appendMessageAndSaveResponse([userPrompt]);
+            await this.appendMessageAndSaveResponse([userPrompt]);
             return {
                 conversationId: this.conversationId,
                 messages: [userPrompt],
@@ -42,27 +42,68 @@ export class ChatsService {
         }
     }
 
+
+
+
+    async appendMessage(data: PromptDto, files?: Array<Express.Multer.File>) {
+        try {
+            this.conversationId = data.conversationId;
+
+            if (files && files.length > 0 && data.type === 'pdf') {
+                await this.pdfProcessorService.processPDF(files)
+            }
+
+            const userPrompt = new this.PromptsModel({
+                conversationId: this.conversationId,
+                userId: data.userId,
+                role: 'user',
+                content: data.content,
+                type: data.type,
+                files: data.files ? data.files : [],
+            })
+            await userPrompt.save();
+            const promptsTillNow = await this.PromptsModel.find({ conversationId: this.conversationId });
+            await this.appendMessageAndSaveResponse(promptsTillNow)
+            return this.getMessages(this.conversationId);
+        }
+        catch (err) {
+            console.log("error in append message service function", err);
+            throw err;
+        }
+    }
+
     async getMessages(conversationId: string) {
         try {
-            console.log("get all messages function is running")
             if (!conversationId) {
                 throw new BadRequestException("Conversation ID is required");
             }
+            const messages = await this.PromptsModel.find({ conversationId }).sort({ createdAt: 1 });
+            if (!messages.length) throw new BadRequestException("No chat found");
 
-            const conversation = await this.PromptsModel.findOne({ conversationId });
-            if (!conversation) {
-                throw new BadRequestException("No chat found with this conversation ID");
-            }
-
-            const messages = await this.PromptsModel.find({ conversationId }).sort({
-                createdAt: 1,
-            });
-            return {
-                messages,
-                success: true,
-            }
+            return { success: true, messages };
         } catch (err) {
             console.log("error in get messages service function", err);
+            throw err;
+        }
+    }
+
+    async getAllConversations(userId: string) {
+        try {
+            const conversations = await this.PromptsModel.aggregate([
+                { $match: { userId } },
+                { $group: { _id: "$conversationId", latest: { $max: "$createdAt" }, title: { $first: "$content" } } },
+                { $sort: { latest: -1 } }
+            ]);
+
+            if (!conversations.length) {
+                return {
+                    success: false,
+                    message: "No conversations found"
+                }
+            }
+            return { success: true, conversations };
+        } catch (err) {
+            console.log("error in get all conversations service function", err);
             throw err;
         }
     }
@@ -93,7 +134,6 @@ export class ChatsService {
                 }))
             })
 
-
             const convertedResponse = new this.PromptsModel({
                 conversationId: promptsList[0].conversationId,
                 userId: promptsList[0].userId,
@@ -102,9 +142,7 @@ export class ChatsService {
                 content: r.choices[0].message.content,
             })
 
-
             await convertedResponse.save();
-
 
         } catch (err) {
             console.log("error in append message and get response service function", err);
