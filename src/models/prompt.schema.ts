@@ -38,6 +38,7 @@ export class Prompts {
             fileId: String,
             fileName: String,
             url: String,
+            summary: String,
         }],
         default: [],
     })
@@ -45,6 +46,7 @@ export class Prompts {
         fileId: string;
         fileName: string;
         url: string;
+        summary?: string;
     }>;
 }
 
