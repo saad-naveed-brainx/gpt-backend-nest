@@ -30,7 +30,8 @@ export class AuthService {
         const token = await this.jwtService.signAsync(payload);
         res.cookie('access_token', token, {
             httpOnly: true,
-            secure: true,
+            secure: false,
+            sameSite: 'lax',
             maxAge: 2 * 24 * 60 * 60 * 1000,
         });
 
@@ -63,7 +64,6 @@ export class AuthService {
             throw err;
         }
     }
-
 
 
     async getProfileService(email: string | null): Promise<User | null> {
